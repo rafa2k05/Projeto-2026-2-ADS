@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="theme-color"
+    content="#181512"
+  >
+
+  <meta
+    name="description"
+    content="Agendamento online Larissa Ferreira Beauty — extensão de cílios, manutenção e remoção."
+  >
+
+  <title>Larissa Ferreira Beauty</title>
+
+  <!-- FONTES -->
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+</head>
+
+<body>
+
+  <!-- ========================================
+       HEADER
+  ========================================= -->
+
+  <header
+    class="site-header"
+    id="topo"
+  >
+
+    <a
+      class="brand"
+      href="#inicio"
+      aria-label="Larissa Ferreira Beauty - início"
+    >
+      <img
+        src="img/logoLarissa.png"
+        alt="Larissa Ferreira Beauty"
+      >
+    </a>
+
+
+    <nav
+      class="desktop-nav"
+      aria-label="Navegação principal"
+    >
+
+      <a
+        class="active"
+        href="#inicio"
+      >
+        Início
+      </a>
+
+      <a href="#servicos">
+        Serviços
+      </a>
+
+      <a href="#sobre">
+        Sobre
+      </a>
+
+      <a href="#contato">
+        Contato
+      </a>
+
+    </nav>
+
+
+    <a
+      class="btn btn-outline header-cta"
+      href="#agendamento"
+    >
+      Agendar agora
+    </a>
+
+
+    <button
+      class="menu-toggle"
+      id="menuToggle"
+      type="button"
+      aria-label="Abrir menu"
+      aria-expanded="false"
+    >
+
+      <span></span>
+      <span></span>
+      <span></span>
+
+    </button>
+
+  </header>
+
+
+  <!-- MENU MOBILE -->
+
+  <div
+    class="mobile-menu"
+    id="mobileMenu"
+  >
+
+    <a href="#inicio">Início</a>
+    <a href="#servicos">Serviços</a>
+    <a href="#sobre">Sobre</a>
+    <a href="#contato">Contato</a>
+
+    <a
+      class="btn btn-primary"
+      href="#agendamento"
+    >
+      Agendar agora
+    </a>
+
+  </div>
+
+
+  <main>
+
+    <!-- ========================================
+         HERO
+    ========================================= -->
+
+    <section
+      class="hero"
+      id="inicio"
+      aria-labelledby="hero-title"
+    >
+
+      <div class="hero-overlay"></div>
+
+      <div class="hero-glow"></div>
+
+
+      <div class="hero-content">
+
+        <!-- TEXTO -->
+
+        <div class="hero-copy reveal">
+
+          <p class="eyebrow">
+            LARISSA FERREIRA BEAUTY
+          </p>
+
+          <h1 id="hero-title">
+            Realce
+            <br>
+            a sua essência
+          </h1>
+
+          <p class="subtitle">
+            Cílios que valorizam o que você
+            já tem de mais bonito.
+          </p>
+
+          <a
+            class="btn btn-primary"
+            href="#agendamento"
+          >
+
+            Agendar agora
+
+            <span aria-hidden="true">
+              →
+            </span>
+
+          </a>
+
+        </div>
+
+
+        <!-- AGENDAMENTO -->
+
+        <div
+          class="booking-card glass reveal"
+          id="agendamento"
+          aria-labelledby="booking-title"
+        >
+
+          <div class="booking-head">
+
+            <div>
+
+              <p class="eyebrow">
+                AGENDAMENTO ONLINE
+              </p>
+
+              <h2 id="booking-title">
+                Agende seu horário
+              </h2>
+
+            </div>
+
+
+            <span class="step-indicator">
+              1/4
+            </span>
+
+          </div>
+
+
+          <!-- ETAPA 1 -->
+
+          <div
+            class="booking-step active"
+            data-step="1"
+          >
+
+            <label for="service">
+              Serviço
+            </label>
+
+            <select id="service">
+
+              <option value="">
+                Selecione o serviço
+              </option>
+
+              <option value="Volume Brasileiro|115|120">
+                Volume Brasileiro — R$ 115,00
+              </option>
+
+              <option value="Volume Inglês|125|120">
+                Volume Inglês — R$ 125,00
+              </option>
+
+              <option value="Fox Eyes|140|120">
+                Fox Eyes — R$ 140,00
+              </option>
+
+              <option value="Manutenção|85|90">
+                Manutenção — R$ 85,00
+              </option>
+
+              <option value="Remoção|45|45">
+                Remoção — R$ 45,00
+              </option>
+
+            </select>
+
+
+            <label for="date">
+              Data
+            </label>
+
+            <input
+              id="date"
+              type="date"
+            >
+
+
+            <label for="time">
+              Horário
+            </label>
+
+            <select id="time">
+
+              <option value="">
+                Escolha o horário
+              </option>
+
+              <option value="10:00">
+                10:00
+              </option>
+
+              <option value="12:00">
+                12:00
+              </option>
+
+              <option value="14:00">
+                14:00
+              </option>
+
+              <option value="16:00">
+                16:00
+              </option>
+
+              <option value="18:00">
+                18:00
+              </option>
+
+            </select>
+
+
+            <button
+              class="btn btn-primary btn-full"
+              id="continueBtn"
+              type="button"
+            >
+
+              Continuar
+
+              <span>
+                →
+              </span>
+
+            </button>
+
+          </div>
+
+
+          <!-- ETAPA 2: DADOS DA CLIENTE -->
+
+          <div
+            class="booking-step"
+            data-step="2"
+          >
+
+            <p class="review-title">
+              Seus dados
+            </p>
+
+            <p class="booking-helper">
+              Informe seu nome e WhatsApp para a Larissa identificar sua solicitação e enviar confirmações.
+            </p>
+
+            <label for="clientName">
+              Nome
+            </label>
+
+            <input
+              id="clientName"
+              type="text"
+              autocomplete="name"
+              placeholder="Seu nome"
+              maxlength="80"
+            >
+
+            <label for="clientPhone">
+              WhatsApp com DDD
+            </label>
+
+            <input
+              id="clientPhone"
+              type="tel"
+              autocomplete="tel"
+              inputmode="tel"
+              placeholder="(11) 99999-9999"
+              maxlength="15"
+            >
+
+            <label class="consent-check" for="whatsappConsent">
+              <input id="whatsappConsent" type="checkbox">
+              <span>Autorizo receber mensagens sobre este agendamento pelo WhatsApp.</span>
+            </label>
+
+            <button
+              class="btn btn-primary btn-full"
+              id="clientContinueBtn"
+              type="button"
+            >
+              Revisar agendamento
+              <span>→</span>
+            </button>
+
+            <button
+              class="text-btn"
+              id="backToScheduleBtn"
+              type="button"
+            >
+              ← Voltar
+            </button>
+
+          </div>
+
+
+          <!-- ETAPA 3: REVISÃO -->
+
+          <div
+            class="booking-step"
+            data-step="3"
+          >
+
+            <p class="review-title">
+              Revise seu agendamento
+            </p>
+
+            <div class="review-box">
+
+              <div>
+                <span>Cliente</span>
+                <strong id="reviewClient">—</strong>
+              </div>
+
+              <div>
+                <span>WhatsApp</span>
+                <strong id="reviewPhone">—</strong>
+              </div>
+
+              <div>
+                <span>Serviço</span>
+                <strong id="reviewService">—</strong>
+              </div>
+
+              <div>
+                <span>Data</span>
+                <strong id="reviewDate">—</strong>
+              </div>
+
+              <div>
+                <span>Horário</span>
+                <strong id="reviewTime">—</strong>
+              </div>
+
+              <div>
+                <span>Valor</span>
+                <strong id="reviewPrice">—</strong>
+              </div>
+
+            </div>
+
+            <button
+              class="btn btn-primary btn-full"
+              id="confirmBtn"
+              type="button"
+            >
+              Continuar no WhatsApp
+            </button>
+
+            <button
+              class="text-btn"
+              id="backBtn"
+              type="button"
+            >
+              ← Voltar
+            </button>
+
+          </div>
+
+
+          <!-- ETAPA 4 -->
+
+          <div
+            class="booking-step success"
+            data-step="4"
+          >
+
+            <div class="success-icon">
+              ✓
+            </div>
+
+
+            <h3>
+              Finalize pelo WhatsApp
+            </h3>
+
+
+            <p>
+              Sua solicitação está pronta.
+              Confirme o horário diretamente
+              com a Larissa.
+            </p>
+
+
+            <button
+              class="btn btn-primary btn-full"
+              id="openWhatsappBtn"
+              type="button"
+            >
+              Abrir WhatsApp
+            </button>
+
+
+            <button
+              class="btn btn-outline btn-full"
+              id="newBookingBtn"
+              type="button"
+            >
+              Novo agendamento
+            </button>
+
+          </div>
+
+
+          <p class="secure">
+            ♡ Atendimento pensado para você
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- BENEFÍCIOS -->
+
+      <div
+        class="benefits"
+        aria-label="Diferenciais"
+      >
+
+        <div>
+
+          <span class="benefit-icon">
+            ✦
+          </span>
+
+          <p>
+            Atendimento
+            <br>
+            personalizado
+          </p>
+
+        </div>
+
+
+        <div>
+
+          <span class="benefit-icon">
+            ◇
+          </span>
+
+          <p>
+            Produtos
+            <br>
+            de alta qualidade
+          </p>
+
+        </div>
+
+
+        <div>
+
+          <span class="benefit-icon">
+            ♡
+          </span>
+
+          <p>
+            Beleza com
+            <br>
+            segurança
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================
+         SERVIÇOS
+    ========================================= -->
+
+    <section
+      class="services section"
+      id="servicos"
+    >
+
+      <div class="section-heading reveal">
+
+        <p class="eyebrow">
+          PROCEDIMENTOS
+        </p>
+
+        <h2>
+          Nossos serviços
+        </h2>
+
+        <p>
+          Escolha o estilo que combina com você.
+          Cada atendimento começa com uma
+          avaliação personalizada.
+        </p>
+
+      </div>
+
+
+      <div class="service-grid">
+
+
+        <article
+          class="service-card reveal"
+          data-service="Volume Brasileiro|115|120"
+        >
+
+          <img
+            src="img/img 1.png"
+            alt="Alongamento de cílios"
+            class="service-image service-image-1"
+          >
+
+          <div class="service-info">
+
+            <div>
+
+              <h3>
+                Alongamento
+              </h3>
+
+              <p>
+                Mais volume, definição
+                e naturalidade.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              aria-label="Agendar alongamento"
+            >
+              →
+            </button>
+
+          </div>
+
+        </article>
+
+
+        <article
+          class="service-card reveal"
+          data-service="Manutenção|85|90"
+        >
+
+          <img
+            src="img/imagem 2.png"
+            alt="Manutenção de cílios"
+            class="service-image service-image-2"
+          >
+
+          <div class="service-info">
+
+            <div>
+
+              <h3>
+                Manutenção
+              </h3>
+
+              <p>
+                Seus cílios bonitos
+                por mais tempo.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              aria-label="Agendar manutenção"
+            >
+              →
+            </button>
+
+          </div>
+
+        </article>
+
+
+        <article
+          class="service-card reveal"
+          data-service="Remoção|45|45"
+        >
+
+          <img
+            src="img/img 3.png"
+            alt="Remoção de cílios"
+            class="service-image service-image-3"
+          >
+
+          <div class="service-info">
+
+            <div>
+
+              <h3>
+                Remoção
+              </h3>
+
+              <p>
+                Remoção segura,
+                cuidadosa e profissional.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              aria-label="Agendar remoção"
+            >
+              →
+            </button>
+
+          </div>
+
+        </article>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================
+         SOBRE
+    ========================================= -->
+
+    <section
+      class="about"
+      id="sobre"
+    >
+
+      <div class="about-sticky">
+
+
+        <!-- TEXTO -->
+
+        <div class="about-copy reveal">
+
+          <p class="eyebrow">
+            SOBRE O STUDIO
+          </p>
+
+
+          <h2>
+            Mais que cílios,
+            <br>
+            <em>confiança.</em>
+          </h2>
+
+
+          <p class="about-description">
+            Um atendimento delicado, técnico
+            e individualizado, pensado para
+            valorizar o seu olhar de forma
+            natural, elegante e segura.
+          </p>
+
+
+          <a
+            class="btn btn-outline-dark"
+            href="#agendamento"
+          >
+            Quero agendar
+          </a>
+
+        </div>
+
+
+        <!-- VÍDEO -->
+
+        <div
+          class="about-video-wrap reveal"
+          aria-label="Vídeo Larissa Ferreira Beauty"
+        >
+
+          <video
+            id="aboutScrollVideo"
+            class="about-video"
+            muted
+            playsinline
+            preload="auto"
+          >
+
+            <source
+              src="img/PixVerse_V6_Image_Text_540P_Create_a_subtle_lu.mp4"
+              type="video/mp4"
+            >
+
+          </video>
+
+
+          <div class="about-video-shade"></div>
+
+
+          <div class="about-video-caption">
+
+            <span>
+              Beleza
+              <br>
+              que acolhe.
+            </span>
+
+
+            <small>
+              Role para explorar
+            </small>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================
+         CONTATO
+    ========================================= -->
+
+    <section
+      class="contact section"
+      id="contato"
+    >
+
+      <p class="eyebrow">
+        CONTATO
+      </p>
+
+
+      <h2>
+        Pronta para
+        <br>
+        realçar seu olhar?
+      </h2>
+
+
+      <p>
+        Escolha seu serviço e encontre
+        o melhor horário para você.
+      </p>
+
+
+      <div class="contact-actions">
+
+        <a
+          href="#agendamento"
+          class="btn btn-primary"
+        >
+          Agendar agora →
+        </a>
+
+
+        <button
+          class="btn btn-outline"
+          id="whatsappContactBtn"
+          type="button"
+        >
+          Falar no WhatsApp
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ========================================
+       MENU INFERIOR MOBILE
+  ========================================= -->
+
+  <nav
+    class="mobile-bottom-nav"
+    aria-label="Navegação mobile"
+  >
+
+    <a href="#inicio">
+      <span>⌂</span>
+      Início
+    </a>
+
+
+    <a href="#servicos">
+      <span>◇</span>
+      Serviços
+    </a>
+
+
+    <a
+      class="mobile-agendar"
+      href="#agendamento"
+    >
+      <span>▣</span>
+      Agendar
+    </a>
+
+
+    <a href="#sobre">
+      <span>○</span>
+      Sobre
+    </a>
+
+
+    <a href="#contato">
+      <span>◌</span>
+      Contato
+    </a>
+
+  </nav>
+
+
+  <div
+    class="toast"
+    role="status"
+    aria-live="polite"
+  ></div>
+
+
+  <script src="script.js"></script>
+
+</body>
+
+</html>
+
