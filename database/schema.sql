@@ -1,7 +1,4 @@
 -- =====================================================================
--- schema.sql — cria o banco inteiro do zero (rode UMA vez no HeidiSQL)
--- Pode rodar de novo sem medo: tudo usa IF NOT EXISTS / INSERT IGNORE.
--- =====================================================================
 CREATE DATABASE IF NOT EXISTS larissa_beauty
   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE larissa_beauty;
