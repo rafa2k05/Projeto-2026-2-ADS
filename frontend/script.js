@@ -1,40 +1,99 @@
-// ===============================
-// ATALHOS
-// ===============================
+// =====================================================================
+// SHORTCUTS / ATALHOS
+// =====================================================================
 
+// Short helpers to select one element or many elements.
+// Atalhos curtos para selecionar um elemento ou vários.
 const $ = (selector, element = document) => element.querySelector(selector);
 const $$ = (selector, element = document) => [...element.querySelectorAll(selector)];
 
 
-// ===============================
-// CONFIGURAÇÃO DO WHATSAPP
-// ===============================
+// =====================================================================
+// SETTINGS / CONFIGURAÇÕES
+// =====================================================================
 
-// TROQUE pelo número real da Larissa: 55 + DDD + número, sem espaços e sem símbolos.
+// Larissa's WhatsApp: 55 + area code + number, no spaces or symbols.
+// WhatsApp da Larissa: 55 + DDD + número, sem espaços e sem símbolos.
 const WHATSAPP_NUMBER = "5511940546668";
 
+// Booking rules. They mirror the backend (funcoes.php), keep both in sync.
+// Regras de agendamento. Espelham o backend (funcoes.php), mantenha os dois iguais.
+const MAX_ADVANCE_DAYS = 90;   // DIAS_MAX_ANTECEDENCIA
+const CLOSED_WEEKDAYS = [];    // DIAS_FECHADOS (0 = Sunday ... 6 = Saturday / 0 = domingo ... 6 = sábado)
+
+// Last WhatsApp link built (reused by the "Open WhatsApp" button).
+// Último link do WhatsApp montado (reaproveitado pelo botão "Abrir WhatsApp").
 let lastWhatsappUrl = "";
 
 
-// ===============================
-// HEADER AO ROLAR
-// ===============================
+// =====================================================================
+// HEADER ON SCROLL / HEADER AO ROLAR
+// =====================================================================
 
 const header = $(".site-header");
 
 if (header) {
+  // Adds the "scrolled" class after the page moves a little.
+  // Adiciona a classe "scrolled" depois que a página rola um pouco.
   const updateHeader = () => {
     header.classList.toggle("scrolled", window.scrollY > 24);
   };
 
   updateHeader();
+  // passive: true tells the browser we never block scrolling (smoother).
+  // passive: true avisa o navegador que nunca bloqueamos a rolagem (mais fluido).
   window.addEventListener("scroll", updateHeader, { passive: true });
 }
 
 
-// ===============================
-// ELEMENTOS DO AGENDAMENTO
-// ===============================
+// =====================================================================
+// MOBILE MENU / MENU MOBILE
+// (NEW: the CSS already had .open, but nothing in JS toggled it)
+// (NOVO: o CSS já tinha o .open, mas nada no JS ativava)
+// =====================================================================
+
+const menuToggle = $("#menuToggle");
+const mobileMenu = $("#mobileMenu");
+
+// Opens or closes the menu and keeps accessibility attributes in sync.
+// Abre ou fecha o menu e mantém os atributos de acessibilidade atualizados.
+function setMenu(open) {
+  if (!menuToggle || !mobileMenu) return;
+
+  menuToggle.classList.toggle("open", open);
+  mobileMenu.classList.toggle("open", open);
+  menuToggle.setAttribute("aria-expanded", String(open));
+  menuToggle.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
+
+  // Block page scrolling behind the open menu.
+  // Trava a rolagem da página por trás do menu aberto.
+  document.body.style.overflow = open ? "hidden" : "";
+}
+
+if (menuToggle && mobileMenu) {
+  // Hamburger button: toggle.
+  // Botão hambúrguer: alterna aberto/fechado.
+  menuToggle.addEventListener("click", () => {
+    setMenu(!mobileMenu.classList.contains("open"));
+  });
+
+  // Clicking any link inside the menu closes it.
+  // Clicar em qualquer link dentro do menu fecha o menu.
+  mobileMenu.addEventListener("click", (event) => {
+    if (event.target.closest("a")) setMenu(false);
+  });
+
+  // Escape key closes the menu.
+  // A tecla Escape fecha o menu.
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setMenu(false);
+  });
+}
+
+
+// =====================================================================
+// BOOKING ELEMENTS / ELEMENTOS DO AGENDAMENTO
+// =====================================================================
 
 const service = $("#service");
 const dateInput = $("#date");
@@ -57,25 +116,65 @@ const toast = $(".toast");
 const TOTAL_STEPS = 4;
 
 
-// ===============================
-// DATA MÍNIMA
-// ===============================
+// =====================================================================
+// DATE LIMITS / LIMITES DA DATA
+// =====================================================================
+
+// Turns a Date object into "YYYY-MM-DD" using the LOCAL date (not UTC).
+// Transforma um Date em "AAAA-MM-DD" usando a data LOCAL (não UTC).
+function toISODate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 if (dateInput) {
+  // Earliest date = tomorrow (same rule as the backend).
+  // Data mínima = amanhã (mesma regra do backend).
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
+  dateInput.min = toISODate(tomorrow);
 
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
-  const day = String(tomorrow.getDate()).padStart(2, "0");
+  // Latest date = today + MAX_ADVANCE_DAYS (NEW: the backend already had this limit).
+  // Data máxima = hoje + MAX_ADVANCE_DAYS (NOVO: o backend já tinha esse limite).
+  const lastDay = new Date();
+  lastDay.setDate(lastDay.getDate() + MAX_ADVANCE_DAYS);
+  dateInput.max = toISODate(lastDay);
+}
 
-  dateInput.min = `${year}-${month}-${day}`;
+// Returns an error message for an invalid date, or "" if it is fine.
+// The min/max attributes only block the date picker; a typed date can still slip through,
+// so we check it here too (NEW).
+// Devolve uma mensagem de erro para data inválida, ou "" se estiver tudo certo.
+// Os atributos min/max só bloqueiam o seletor de datas; uma data digitada ainda passaria,
+// por isso conferimos aqui também (NOVO).
+function getDateError(value) {
+  if (!value) return "Escolha a data.";
+
+  if (dateInput.min && value < dateInput.min) {
+    return "Escolha uma data a partir de amanhã.";
+  }
+
+  if (dateInput.max && value > dateInput.max) {
+    return `Só é possível agendar em até ${MAX_ADVANCE_DAYS} dias.`;
+  }
+
+  // T12:00:00 avoids timezone shifts that could move the date to another day.
+  // T12:00:00 evita mudanças de fuso que poderiam levar a data para outro dia.
+  const weekday = new Date(`${value}T12:00:00`).getDay();
+  if (CLOSED_WEEKDAYS.includes(weekday)) {
+    return "Não atendemos neste dia da semana.";
+  }
+
+  return "";
 }
 
 
-// ===============================
-// TOAST
-// ===============================
+// =====================================================================
+// TOAST (small message) / TOAST (mensagem rápida)
+// =====================================================================
 
 let toastTimer;
 
@@ -85,19 +184,21 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
 
+  // Restart the timer so messages never hide too early.
+  // Reinicia o contador para a mensagem nunca sumir cedo demais.
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
 
-// ===============================
-// ETAPAS DO AGENDAMENTO
-// ===============================
+// =====================================================================
+// BOOKING STEPS / ETAPAS DO AGENDAMENTO
+// =====================================================================
 
+// Shows only the requested step and updates the "1/4" indicator.
+// Mostra apenas a etapa pedida e atualiza o indicador "1/4".
 function setStep(stepNumber) {
-  const bookingSteps = $$(".booking-step");
-
-  bookingSteps.forEach((step) => {
+  $$(".booking-step").forEach((step) => {
     const currentStep = Number(step.dataset.step);
     step.classList.toggle("active", currentStep === stepNumber);
   });
@@ -108,10 +209,12 @@ function setStep(stepNumber) {
 }
 
 
-// ===============================
-// DADOS DO SERVIÇO
-// ===============================
+// =====================================================================
+// DATA HELPERS / FUNÇÕES AUXILIARES
+// =====================================================================
 
+// Reads the selected service. The option value looks like "Name|price|minutes".
+// Lê o serviço escolhido. O value da opção tem o formato "Nome|preço|minutos".
 function parseService() {
   if (!service || !service.value) return null;
 
@@ -124,9 +227,13 @@ function parseService() {
   };
 }
 
+// "2026-11-05" -> "05/11/2026".
+// "2026-11-05" -> "05/11/2026".
 function formatDate(date) {
   if (!date) return "";
 
+  // T12:00:00 avoids timezone shifts (see getDateError).
+  // T12:00:00 evita mudanças de fuso (veja getDateError).
   const formattedDate = new Date(`${date}T12:00:00`);
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -136,6 +243,8 @@ function formatDate(date) {
   }).format(formattedDate);
 }
 
+// 115 -> "R$ 115,00".
+// 115 -> "R$ 115,00".
 function formatPrice(price) {
   return price.toLocaleString("pt-BR", {
     style: "currency",
@@ -143,10 +252,14 @@ function formatPrice(price) {
   });
 }
 
+// Keeps only the digits of a text.
+// Mantém apenas os dígitos de um texto.
 function onlyDigits(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
+// Applies the phone mask: (11) 99999-9999.
+// Aplica a máscara de telefone: (11) 99999-9999.
 function formatPhone(value) {
   const digits = onlyDigits(value).slice(0, 11);
 
@@ -156,6 +269,8 @@ function formatPhone(value) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+// Checks name, phone and consent. Shows a message and returns false on the first problem.
+// Confere nome, telefone e autorização. Mostra uma mensagem e devolve false no primeiro problema.
 function validateClientData() {
   const name = clientName?.value.trim() || "";
   const phoneDigits = onlyDigits(clientPhone?.value);
@@ -166,7 +281,13 @@ function validateClientData() {
     return false;
   }
 
-  if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+  // Area code (DDD) must be 11-99; 11-digit numbers are mobile and must start with 9 (NEW).
+  // O DDD precisa ser 11-99; números de 11 dígitos são celulares e começam com 9 (NOVO).
+  const validLength = phoneDigits.length === 10 || phoneDigits.length === 11;
+  const validAreaCode = /^[1-9][1-9]/.test(phoneDigits);
+  const validMobile = phoneDigits.length === 10 || phoneDigits[2] === "9";
+
+  if (!validLength || !validAreaCode || !validMobile) {
     showToast("Informe um WhatsApp válido com DDD.");
     clientPhone?.focus();
     return false;
@@ -180,9 +301,12 @@ function validateClientData() {
   return true;
 }
 
+// Fills the review screen (step 3). textContent is used on purpose: it never runs HTML,
+// so a malicious name cannot inject code (anti-XSS).
+// Preenche a tela de revisão (etapa 3). textContent é usado de propósito: nunca executa HTML,
+// então um nome malicioso não consegue injetar código (proteção contra XSS).
 function fillReview() {
   const selectedService = parseService();
-
   if (!selectedService) return;
 
   const reviewClient = $("#reviewClient");
@@ -201,10 +325,12 @@ function fillReview() {
 }
 
 
-// ===============================
+// =====================================================================
 // WHATSAPP
-// ===============================
+// =====================================================================
 
+// Builds the wa.me link with the booking details. Returns "" if something is missing.
+// Monta o link wa.me com os dados do agendamento. Devolve "" se algo estiver faltando.
 function buildWhatsappUrl() {
   const selectedService = parseService();
 
@@ -214,18 +340,22 @@ function buildWhatsappUrl() {
 
   const message = `Olá, Larissa! Gostaria de solicitar um agendamento.\n\nCliente: ${clientName.value.trim()}\nWhatsApp: ${clientPhone.value.trim()}\nServiço: ${selectedService.name}\nData: ${formatDate(dateInput.value)}\nHorário: ${time.value}\nValor: ${formatPrice(selectedService.price)}\n\nPode confirmar a disponibilidade desse horário para mim?`;
 
+  // encodeURIComponent makes the text safe to travel inside a URL.
+  // encodeURIComponent deixa o texto seguro para viajar dentro de uma URL.
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
+// Opens a link in a new tab, without giving it access to this page (noopener).
+// Abre um link em nova aba, sem dar a ela acesso a esta página (noopener).
 function openWhatsapp(url) {
   if (!url) return;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
 
-// ===============================
-// MÁSCARA DO WHATSAPP DA CLIENTE
-// ===============================
+// =====================================================================
+// PHONE MASK / MÁSCARA DO WHATSAPP DA CLIENTE
+// =====================================================================
 
 if (clientPhone) {
   clientPhone.addEventListener("input", () => {
@@ -234,16 +364,25 @@ if (clientPhone) {
 }
 
 
-// ===============================
-// BOTÃO CONTINUAR
-// ===============================
+// =====================================================================
+// CONTINUE BUTTONS / BOTÕES CONTINUAR
+// =====================================================================
 
+// Step 1 -> 2: service, date and time must be valid.
+// Etapa 1 -> 2: serviço, data e horário precisam estar válidos.
 if (continueBtn) {
   continueBtn.addEventListener("click", () => {
-    const selectedService = parseService();
-
-    if (!selectedService || !dateInput?.value || !time?.value) {
+    if (!parseService() || !time?.value) {
       showToast("Escolha o serviço, a data e o horário.");
+      return;
+    }
+
+    // Typed dates can ignore min/max, so we validate them here (NEW).
+    // Datas digitadas podem ignorar min/max, então validamos aqui (NOVO).
+    const dateError = getDateError(dateInput?.value);
+    if (dateError) {
+      showToast(dateError);
+      dateInput?.focus();
       return;
     }
 
@@ -251,6 +390,8 @@ if (continueBtn) {
   });
 }
 
+// Step 2 -> 3: client data must be valid; then show the review.
+// Etapa 2 -> 3: os dados da cliente precisam estar válidos; depois mostra a revisão.
 if (clientContinueBtn) {
   clientContinueBtn.addEventListener("click", () => {
     if (!validateClientData()) return;
@@ -260,9 +401,9 @@ if (clientContinueBtn) {
 }
 
 
-// ===============================
-// VOLTAR
-// ===============================
+// =====================================================================
+// BACK BUTTONS / BOTÕES VOLTAR
+// =====================================================================
 
 if (backToScheduleBtn) {
   backToScheduleBtn.addEventListener("click", () => setStep(1));
@@ -273,9 +414,9 @@ if (backBtn) {
 }
 
 
-// ===============================
-// CONFIRMAR / PREPARAR WHATSAPP
-// ===============================
+// =====================================================================
+// CONFIRM / OPEN WHATSAPP / CONFIRMAR / ABRIR WHATSAPP
+// =====================================================================
 
 if (confirmBtn) {
   confirmBtn.addEventListener("click", () => {
@@ -287,13 +428,21 @@ if (confirmBtn) {
       return;
     }
 
+    // CHANGED: open WhatsApp right here, inside the click. Browsers (mainly Safari/iPhone)
+    // block pop-ups opened later by a setTimeout. The "Open WhatsApp" button on step 4
+    // stays as a backup.
+    // ALTERADO: abre o WhatsApp aqui mesmo, dentro do clique. Navegadores (principalmente
+    // Safari/iPhone) bloqueiam pop-ups abertos depois por um setTimeout. O botão
+    // "Abrir WhatsApp" da etapa 4 continua como reserva.
+    openWhatsapp(lastWhatsappUrl);
+
     setStep(4);
     showToast("Solicitação pronta para o WhatsApp.");
-
-    setTimeout(() => openWhatsapp(lastWhatsappUrl), 450);
   });
 }
 
+// Backup button on step 4: opens the same link again.
+// Botão reserva da etapa 4: abre o mesmo link de novo.
 if (openWhatsappBtn) {
   openWhatsappBtn.addEventListener("click", () => {
     if (!lastWhatsappUrl) lastWhatsappUrl = buildWhatsappUrl();
@@ -308,6 +457,8 @@ if (openWhatsappBtn) {
   });
 }
 
+// "Talk on WhatsApp" button in the contact section (general question, no booking).
+// Botão "Falar no WhatsApp" da seção de contato (dúvida geral, sem agendamento).
 if (whatsappContactBtn) {
   whatsappContactBtn.addEventListener("click", () => {
     const message = "Olá, Larissa! Vim pelo site e gostaria de tirar uma dúvida sobre os serviços.";
@@ -317,10 +468,12 @@ if (whatsappContactBtn) {
 }
 
 
-// ===============================
-// NOVO AGENDAMENTO
-// ===============================
+// =====================================================================
+// NEW BOOKING / NOVO AGENDAMENTO
+// =====================================================================
 
+// Clears every field and goes back to step 1.
+// Limpa todos os campos e volta para a etapa 1.
 if (newBookingBtn) {
   newBookingBtn.addEventListener("click", () => {
     if (service) service.value = "";
@@ -336,13 +489,13 @@ if (newBookingBtn) {
 }
 
 
-// ===============================
-// CARDS DOS SERVIÇOS
-// ===============================
+// =====================================================================
+// SERVICE CARDS / CARDS DOS SERVIÇOS
+// =====================================================================
 
-const serviceCards = $$(".service-card");
-
-serviceCards.forEach((card) => {
+// Clicking a card pre-selects its service and scrolls to the booking form.
+// Clicar em um card pré-seleciona o serviço e rola até o formulário de agendamento.
+$$(".service-card").forEach((card) => {
   const button = card.querySelector("button");
   if (!button) return;
 
@@ -362,25 +515,34 @@ serviceCards.forEach((card) => {
 
     setStep(1);
 
+    // Wait for the scroll to finish before focusing the date field.
+    // Espera a rolagem terminar antes de focar no campo de data.
     setTimeout(() => dateInput?.focus(), 700);
   });
 });
 
 
-// ===============================
-// VÍDEO DO SOBRE CONTROLADO PELO SCROLL
-// ===============================
+// =====================================================================
+// SCROLL-CONTROLLED ABOUT VIDEO / VÍDEO DO SOBRE CONTROLADO PELO SCROLL
+// CHANGED: the animation loop now runs ONLY while the section is on screen
+// (before, it ran forever, even far from the video, wasting battery).
+// ALTERADO: o loop de animação agora roda SÓ enquanto a seção está na tela
+// (antes rodava para sempre, mesmo longe do vídeo, gastando bateria).
+// =====================================================================
 
 const aboutSection = $("#sobre");
 const aboutVideo = $("#aboutScrollVideo");
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 if (aboutSection && aboutVideo && !reduceMotion) {
-  let duration = 0;
-  let targetTime = 0;
-  let smoothTime = 0;
-  let rafId = null;
+  let duration = 0;       // video length in seconds / duração do vídeo em segundos
+  let targetTime = 0;     // where the video should be / onde o vídeo deveria estar
+  let smoothTime = 0;     // eased position, avoids jumps / posição suavizada, evita saltos
+  let rafId = null;       // animation frame id (null = loop stopped) / id do frame (null = loop parado)
+  let isVisible = false;  // is the section near the screen? / a seção está perto da tela?
 
+  // 0 to 1: how far the user scrolled through the about section.
+  // 0 a 1: quanto o usuário já rolou pela seção "sobre".
   const getProgress = () => {
     const rect = aboutSection.getBoundingClientRect();
     const scrollableDistance = Math.max(1, aboutSection.offsetHeight - window.innerHeight);
@@ -388,15 +550,20 @@ if (aboutSection && aboutVideo && !reduceMotion) {
     return travelled / scrollableDistance;
   };
 
+  // Converts scroll progress into a time inside the video.
+  // Converte o progresso da rolagem em um tempo dentro do vídeo.
   const updateTargetTime = () => {
     if (!duration) return;
-    const progress = getProgress();
-    targetTime = progress * Math.max(0, duration - 0.05);
+    targetTime = getProgress() * Math.max(0, duration - 0.05);
   };
 
+  // One animation frame: move the video a bit closer to the target time.
+  // Um frame da animação: aproxima o vídeo um pouco do tempo-alvo.
   const animateVideo = () => {
-    if (!duration) {
-      rafId = requestAnimationFrame(animateVideo);
+    // Stop the loop when off screen or before the video metadata is ready.
+    // Para o loop quando está fora da tela ou antes dos metadados do vídeo estarem prontos.
+    if (!isVisible || !duration) {
+      rafId = null;
       return;
     }
 
@@ -407,34 +574,65 @@ if (aboutSection && aboutVideo && !reduceMotion) {
       try {
         aboutVideo.currentTime = smoothTime;
       } catch (error) {
-        // Alguns navegadores podem bloquear seeks muito rápidos enquanto o vídeo carrega.
+        // Some browsers block very fast seeks while the video is still loading.
+        // Alguns navegadores bloqueiam seeks muito rápidos enquanto o vídeo carrega.
       }
     }
 
     rafId = requestAnimationFrame(animateVideo);
   };
 
+  // Starts the loop only if it is not running yet and the section is visible.
+  // Inicia o loop só se ainda não estiver rodando e a seção estiver visível.
+  const startLoop = () => {
+    if (rafId === null && isVisible && duration) {
+      rafId = requestAnimationFrame(animateVideo);
+    }
+  };
+
+  const stopLoop = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  };
+
+  // Called when the video metadata is available (duration known).
+  // Chamada quando os metadados do vídeo estão disponíveis (duração conhecida).
   const prepareVideo = () => {
-    duration = aboutVideo.duration || 0;
+    duration = Number.isFinite(aboutVideo.duration) ? aboutVideo.duration : 0;
     aboutVideo.pause();
     updateTargetTime();
     smoothTime = targetTime;
-    if (!rafId) animateVideo();
+    startLoop();
   };
 
-  aboutVideo.addEventListener("loadedmetadata", prepareVideo);
-  window.addEventListener("resize", updateTargetTime);
-  window.addEventListener("scroll", updateTargetTime, { passive: true });
+  // Watch the section: loop on while it is near the screen, off otherwise.
+  // The 200px margin starts the loop slightly before the section appears.
+  // Observa a seção: loop ligado enquanto ela está perto da tela, desligado fora dela.
+  // A margem de 200px inicia o loop um pouco antes de a seção aparecer.
+  new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) startLoop();
+      else stopLoop();
+    },
+    { rootMargin: "200px 0px" }
+  ).observe(aboutSection);
 
+  aboutVideo.addEventListener("loadedmetadata", prepareVideo);
+
+  // If the metadata already loaded before this script ran, prepare right away.
+  // Se os metadados já carregaram antes deste script rodar, prepara na hora.
   if (aboutVideo.readyState >= 1) {
     prepareVideo();
   }
 }
 
 
-// ===============================
-// ANIMAÇÕES AO ROLAR
-// ===============================
+// =====================================================================
+// REVEAL ON SCROLL / ANIMAÇÕES AO ROLAR
+// =====================================================================
 
 const revealElements = $$(".reveal");
 
@@ -443,6 +641,8 @@ if (revealElements.length > 0 && "IntersectionObserver" in window) {
     (entries, observer) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
+          // Show the element and stop watching it (animates only once).
+          // Mostra o elemento e para de observá-lo (anima uma vez só).
           entry.target.classList.add("visible");
           observer.unobserve(entry.target);
         }
@@ -452,12 +652,16 @@ if (revealElements.length > 0 && "IntersectionObserver" in window) {
   );
 
   revealElements.forEach((element) => revealObserver.observe(element));
+} else {
+  // Old browsers without IntersectionObserver: show everything, never leave content hidden (NEW).
+  // Navegadores antigos sem IntersectionObserver: mostra tudo, nunca deixa conteúdo escondido (NOVO).
+  revealElements.forEach((element) => element.classList.add("visible"));
 }
 
 
-// ===============================
-// MENU ATIVO CONFORME A SEÇÃO
-// ===============================
+// =====================================================================
+// ACTIVE MENU LINK / MENU ATIVO CONFORME A SEÇÃO
+// =====================================================================
 
 const sections = $$("main section[id]");
 const navLinks = $$(".desktop-nav a");
@@ -468,6 +672,8 @@ if (sections.length > 0 && navLinks.length > 0 && "IntersectionObserver" in wind
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
 
+        // Highlight only the link of the section crossing the middle of the screen.
+        // Destaca só o link da seção que está cruzando o meio da tela.
         navLinks.forEach((link) => {
           const isActive = link.getAttribute("href") === `#${entry.target.id}`;
           link.classList.toggle("active", isActive);
@@ -481,9 +687,9 @@ if (sections.length > 0 && navLinks.length > 0 && "IntersectionObserver" in wind
 }
 
 
-// ===============================
-// LINKS COM ROLAGEM SUAVE
-// ===============================
+// =====================================================================
+// SMOOTH ANCHOR LINKS / LINKS COM ROLAGEM SUAVE
+// =====================================================================
 
 $$("a[href^='#']").forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -499,9 +705,11 @@ $$("a[href^='#']").forEach((link) => {
 });
 
 
-// ===============================
-// INICIAR SISTEMA
-// ===============================
+// =====================================================================
+// START / INICIAR SISTEMA
+// =====================================================================
 
+// Show step 1 when the page loads.
+// Mostra a etapa 1 quando a página carrega.
 setStep(1);
 console.log("Larissa Ferreira Beauty carregado.");
