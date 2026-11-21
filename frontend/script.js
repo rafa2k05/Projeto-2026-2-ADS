@@ -16,14 +16,17 @@ const $$ = (selector, element = document) => [...element.querySelectorAll(select
 // WhatsApp da Larissa: 55 + DDD + número, sem espaços e sem símbolos.
 const WHATSAPP_NUMBER = "5511940546668";
 
-// Booking rules. They mirror the backend (funcoes.php), keep both in sync.
-// Regras de agendamento. Espelham o backend (funcoes.php), mantenha os dois iguais.
-const MAX_ADVANCE_DAYS = 90;   // DIAS_MAX_ANTECEDENCIA
-const CLOSED_WEEKDAYS = [];    // DIAS_FECHADOS (0 = Sunday ... 6 = Saturday / 0 = domingo ... 6 = sábado)
+// APIs PHP. O frontend não é a fonte de verdade dos preços, horários ou disponibilidade.
+const API_BASE = "../backend/api";
+const MAX_ADVANCE_DAYS = 90; // apenas para limitar o seletor; o PHP valida novamente
+const CLOSED_WEEKDAYS = [];
 
 // Last WhatsApp link built (reused by the "Open WhatsApp" button).
 // Último link do WhatsApp montado (reaproveitado pelo botão "Abrir WhatsApp").
 let lastWhatsappUrl = "";
+let csrfToken = "";
+let servicesCache = [];
+let lastBooking = null;
 
 
 // =====================================================================
@@ -191,6 +194,88 @@ function showToast(message) {
 }
 
 
+// ===== Integração com as APIs PHP =====
+async function apiRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (options.body) headers['Content-Type'] = 'application/json';
+  if (options.method && options.method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  const response = await fetch(`${API_BASE}/${path}`, { credentials: 'same-origin', ...options, headers });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.erro || 'Não foi possível concluir a operação.');
+  return payload;
+}
+
+async function loadCsrf() {
+  const data = await apiRequest('me.php');
+  csrfToken = data.csrf || '';
+}
+
+async function loadServices() {
+  const data = await apiRequest('listar_servicos.php');
+  servicesCache = data.servicos || [];
+  if (!service) return;
+  service.innerHTML = '<option value="">Selecione o serviço</option>';
+  servicesCache.forEach((item) => {
+    const option = document.createElement('option');
+    option.value = String(item.id);
+    option.textContent = `${item.nome} — ${formatPrice(item.preco)}`;
+    service.appendChild(option);
+  });
+}
+
+async function loadAvailableTimes() {
+  if (!time) return;
+  const selectedService = parseService();
+  const date = dateInput?.value || '';
+  time.disabled = true;
+  time.innerHTML = '<option value="">Carregando horários...</option>';
+  if (!selectedService || !date) {
+    time.innerHTML = '<option value="">Escolha primeiro o serviço e a data</option>';
+    return;
+  }
+  try {
+    const query = new URLSearchParams({ data: date, servico_id: String(selectedService.id) });
+    const data = await apiRequest(`listar_horarios.php?${query.toString()}`);
+    time.innerHTML = '<option value="">Escolha o horário</option>';
+    (data.horarios || []).forEach((hora) => {
+      const option = document.createElement('option');
+      option.value = hora;
+      option.textContent = hora;
+      time.appendChild(option);
+    });
+    if (data.dia_bloqueado) {
+      time.innerHTML = '<option value="">Esta data está indisponível</option>';
+      showToast('A Larissa não atende nesta data. Escolha outro dia.');
+    } else if (!(data.horarios || []).length) {
+      time.innerHTML = '<option value="">Nenhum horário disponível</option>';
+    }
+    time.disabled = false;
+  } catch (error) {
+    time.innerHTML = '<option value="">Erro ao carregar horários</option>';
+    showToast(error.message);
+  }
+}
+
+async function submitBooking() {
+  const selectedService = parseService();
+  if (!selectedService || !dateInput?.value || !time?.value) throw new Error('Escolha serviço, data e horário.');
+  const result = await apiRequest('agendamento.php', {
+    method: 'POST',
+    body: JSON.stringify({
+      servico_id: selectedService.id,
+      data: dateInput.value,
+      hora: time.value,
+      nome: clientName.value.trim(),
+      telefone: onlyDigits(clientPhone.value),
+      consentimento_whatsapp: Boolean(whatsappConsent?.checked)
+    })
+  });
+  lastBooking = result.agendamento;
+  lastWhatsappUrl = buildWhatsappUrl();
+  return result;
+}
+
+
 // =====================================================================
 // BOOKING STEPS / ETAPAS DO AGENDAMENTO
 // =====================================================================
@@ -217,14 +302,8 @@ function setStep(stepNumber) {
 // Lê o serviço escolhido. O value da opção tem o formato "Nome|preço|minutos".
 function parseService() {
   if (!service || !service.value) return null;
-
-  const [name, rawPrice, rawDuration] = service.value.split("|");
-
-  return {
-    name,
-    price: Number(rawPrice),
-    duration: Number(rawDuration),
-  };
+  const id = Number(service.value);
+  return servicesCache.find((item) => item.id === id) || null;
 }
 
 // "2026-11-05" -> "05/11/2026".
@@ -318,10 +397,10 @@ function fillReview() {
 
   if (reviewClient) reviewClient.textContent = clientName?.value.trim() || "—";
   if (reviewPhone) reviewPhone.textContent = clientPhone?.value.trim() || "—";
-  if (reviewService) reviewService.textContent = selectedService.name;
+  if (reviewService) reviewService.textContent = selectedService.nome;
   if (reviewDate) reviewDate.textContent = formatDate(dateInput.value);
   if (reviewTime) reviewTime.textContent = time.value;
-  if (reviewPrice) reviewPrice.textContent = formatPrice(selectedService.price);
+  if (reviewPrice) reviewPrice.textContent = formatPrice(selectedService.preco);
 }
 
 
@@ -333,15 +412,8 @@ function fillReview() {
 // Monta o link wa.me com os dados do agendamento. Devolve "" se algo estiver faltando.
 function buildWhatsappUrl() {
   const selectedService = parseService();
-
-  if (!selectedService || !dateInput?.value || !time?.value || !clientName?.value || !clientPhone?.value) {
-    return "";
-  }
-
-  const message = `Olá, Larissa! Gostaria de solicitar um agendamento.\n\nCliente: ${clientName.value.trim()}\nWhatsApp: ${clientPhone.value.trim()}\nServiço: ${selectedService.name}\nData: ${formatDate(dateInput.value)}\nHorário: ${time.value}\nValor: ${formatPrice(selectedService.price)}\n\nPode confirmar a disponibilidade desse horário para mim?`;
-
-  // encodeURIComponent makes the text safe to travel inside a URL.
-  // encodeURIComponent deixa o texto seguro para viajar dentro de uma URL.
+  if (!selectedService || !dateInput?.value || !time?.value || !clientName?.value || !clientPhone?.value || !lastBooking) return "";
+  const message = `Olá, Larissa! Meu agendamento foi registrado no site.\n\nCódigo: ${lastBooking.id}\nCliente: ${clientName.value.trim()}\nWhatsApp: ${clientPhone.value.trim()}\nServiço: ${selectedService.nome}\nData: ${formatDate(dateInput.value)}\nHorário: ${time.value}\nValor: ${formatPrice(selectedService.preco)}\nStatus: Pendente de confirmação.`;
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
@@ -362,6 +434,9 @@ if (clientPhone) {
     clientPhone.value = formatPhone(clientPhone.value);
   });
 }
+
+if (service) service.addEventListener("change", loadAvailableTimes);
+if (dateInput) dateInput.addEventListener("change", loadAvailableTimes);
 
 
 // =====================================================================
@@ -419,25 +494,27 @@ if (backBtn) {
 // =====================================================================
 
 if (confirmBtn) {
-  confirmBtn.addEventListener("click", () => {
-    lastWhatsappUrl = buildWhatsappUrl();
-
-    if (!lastWhatsappUrl) {
-      showToast("Preencha os dados do agendamento.");
-      setStep(1);
-      return;
+  confirmBtn.addEventListener("click", async () => {
+    const dateError = getDateError(dateInput?.value);
+    if (dateError) { showToast(dateError); setStep(1); return; }
+    if (!validateClientData()) return;
+    confirmBtn.disabled = true;
+    const originalText = confirmBtn.textContent;
+    confirmBtn.textContent = "Registrando...";
+    try {
+      const result = await submitBooking();
+      setStep(4);
+      showToast(`Agendamento #${result.agendamento.id} registrado como pendente.`);
+    } catch (error) {
+      showToast(error.message);
+      if (error.message.toLowerCase().includes('horário') || error.message.toLowerCase().includes('data')) {
+        await loadAvailableTimes();
+        setStep(1);
+      }
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = originalText;
     }
-
-    // CHANGED: open WhatsApp right here, inside the click. Browsers (mainly Safari/iPhone)
-    // block pop-ups opened later by a setTimeout. The "Open WhatsApp" button on step 4
-    // stays as a backup.
-    // ALTERADO: abre o WhatsApp aqui mesmo, dentro do clique. Navegadores (principalmente
-    // Safari/iPhone) bloqueiam pop-ups abertos depois por um setTimeout. O botão
-    // "Abrir WhatsApp" da etapa 4 continua como reserva.
-    openWhatsapp(lastWhatsappUrl);
-
-    setStep(4);
-    showToast("Solicitação pronta para o WhatsApp.");
   });
 }
 
@@ -484,6 +561,8 @@ if (newBookingBtn) {
     if (whatsappConsent) whatsappConsent.checked = false;
 
     lastWhatsappUrl = "";
+    lastBooking = null;
+    if (time) { time.innerHTML = '<option value="">Escolha primeiro o serviço e a data</option>'; time.disabled = true; }
     setStep(1);
   });
 }
@@ -501,7 +580,9 @@ $$(".service-card").forEach((card) => {
 
   button.addEventListener("click", () => {
     if (service && card.dataset.service) {
-      service.value = card.dataset.service;
+      const serviceName = card.dataset.service.split("|")[0];
+      const found = servicesCache.find((item) => item.nome === serviceName);
+      if (found) { service.value = String(found.id); loadAvailableTimes(); }
     }
 
     const bookingSection = $("#agendamento");
@@ -712,4 +793,13 @@ $$("a[href^='#']").forEach((link) => {
 // Show step 1 when the page loads.
 // Mostra a etapa 1 quando a página carrega.
 setStep(1);
+(async () => {
+  try {
+    await loadCsrf();
+    await loadServices();
+  } catch (error) {
+    showToast('Não foi possível conectar ao sistema de agendamento.');
+    if (service) service.innerHTML = '<option value="">Sistema temporariamente indisponível</option>';
+  }
+})();
 console.log("Larissa Ferreira Beauty carregado.");
