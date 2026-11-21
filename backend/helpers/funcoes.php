@@ -465,3 +465,63 @@ function exigir_admin(PDO $pdo): array
     return $u;
 }
 ?>
+
+// ===== Agenda / Regras de agenda =====
+
+function hora_valida(string $hora): bool
+{
+    return in_array($hora, HORARIOS_FIXOS, true);
+}
+
+function telefone_normalizado(string $telefone): string
+{
+    return preg_replace('/\D+/', '', $telefone) ?? '';
+}
+
+function telefone_valido(string $telefone): bool
+{
+    $n = telefone_normalizado($telefone);
+    return (strlen($n) === 10 || strlen($n) === 11)
+        && preg_match('/^[1-9][1-9]/', $n) === 1
+        && (strlen($n) === 10 || ($n[2] ?? '') === '9');
+}
+
+function data_iso_valida(string $texto, bool $permitirHoje = true): ?DateTimeImmutable
+{
+    $d = DateTimeImmutable::createFromFormat('!Y-m-d', $texto);
+    $erros = DateTimeImmutable::getLastErrors();
+    if ($d === false || ($erros !== false && ($erros['warning_count'] > 0 || $erros['error_count'] > 0)) || $d->format('Y-m-d') !== $texto) {
+        return null;
+    }
+    $hoje = new DateTimeImmutable('today');
+    if (($permitirHoje && $d < $hoje) || (!$permitirHoje && $d <= $hoje)) {
+        return null;
+    }
+    return $d;
+}
+
+// Serializa todas as operações de agenda da mesma data. Deve ser chamado dentro de transação.
+function bloquear_linha_dia(PDO $pdo, string $data): void
+{
+    $st = $pdo->prepare('INSERT IGNORE INTO agenda_dias (data) VALUES (:data)');
+    $st->execute(['data' => $data]);
+    $st = $pdo->prepare('SELECT data FROM agenda_dias WHERE data = :data FOR UPDATE');
+    $st->execute(['data' => $data]);
+    $st->fetch();
+}
+
+function horario_fim(string $hora, int $duracaoMinutos): string
+{
+    $inicio = DateTimeImmutable::createFromFormat('!H:i', $hora);
+    if ($inicio === false) {
+        throw new InvalidArgumentException('Horário inválido.');
+    }
+    return $inicio->modify('+' . $duracaoMinutos . ' minutes')->format('H:i:s');
+}
+
+function intervalos_se_sobrepoem(string $inicioA, string $fimA, string $inicioB, string $fimB): bool
+{
+    return $inicioA < $fimB && $fimA > $inicioB;
+}
+
+?>

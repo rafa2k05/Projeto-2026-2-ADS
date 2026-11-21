@@ -1,15 +1,5 @@
-# Backend - Monique Barros Beauty 
-API em PHP para o projeto final de ADS (UNINOVE).
+Backend PHP da Larissa Beauty.
 
-**Modelos:** <br>
-  Brasileiro  (R$ 115) <br>
-  Mega Brasileiro (R$ 130)<br>
-  Fox eyes (R$ 140)<br>
-  Mega Fox eyes (R$ 160)<br>
-  Volume 5d (R$ 110)<br>
-  Designer Sobrancelha (R$ 30) <br>
-  Inglês (R$ 125) <br>
-  Manutenção (R$ 85) <br>
-  Remoção (Química - Mecânica) (R$ 45)
-  
-  
+Instalação, banco de dados e teste: veja o `README.md` na raiz do projeto.
+
+Requisitos: PHP 8.1+ com PDO MySQL e mbstring; MySQL 8.0+; Apache com .htaccess (Laragon/XAMPP).

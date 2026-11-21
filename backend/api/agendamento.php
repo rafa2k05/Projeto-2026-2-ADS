@@ -1,117 +1,108 @@
 <?php
 declare(strict_types=1);
-
-// Load shared helpers (iniciar_api, exigir_login, ler_json, campo, responder...).
-// Carrega as funções compartilhadas (iniciar_api, exigir_login, ler_json, campo, responder...).
 require_once __DIR__ . '/../helpers/funcoes.php';
-
-// Only POST is allowed: booking creates data.
-// Só aceita POST: o agendamento cria dados.
 iniciar_api('POST');
-
-// Security check: request must come from our site and carry a valid CSRF token.
-// Verificação de segurança: a requisição precisa vir do nosso site e ter um token CSRF válido.
 exigir_origem_e_csrf();
-
-// Open the database connection ($pdo).
-// Abre a conexão com o banco de dados ($pdo).
 require_once __DIR__ . '/../config/conexao.php';
 
-try {
-    // The person booking is ALWAYS the logged-in user from the session.
-    // Quem agenda é SEMPRE o usuário logado da sessão.
-    $usuario = exigir_login($pdo);
+$dados = ler_json();
+$servicoId = $dados['servico_id'] ?? null;
+$dataTexto = campo($dados, 'data');
+$hora = campo($dados, 'hora');
+$nome = campo($dados, 'nome');
+$telefone = telefone_normalizado(campo($dados, 'telefone'));
+$consentimento = ($dados['consentimento_whatsapp'] ?? false) === true;
 
-    // Read the JSON body and extract the fields.
-    // Lê o corpo JSON e extrai os campos.
-    $dados     = ler_json();
-    $servicoId = $dados['servico_id'] ?? null;
-    $dataTexto = campo($dados, 'data');
-    $hora      = campo($dados, 'hora');
-
-    // All fields are required; the service id must be a real integer (not "1" or 1.5).
-    // Todos os campos são obrigatórios; o id do serviço precisa ser inteiro de verdade (não "1" nem 1.5).
-    if (!is_int($servicoId) || $servicoId < 1 || $dataTexto === '' || $hora === '') {
-        responder(400, ['erro' => 'Informe serviço, data e horário.']);
-    }
-
-    // The date must be valid and inside the booking period.
-    // A data precisa ser válida e estar dentro do período de agendamento.
-    $data = data_agendavel($dataTexto);
-    if ($data === null) {
-        responder(400, ['erro' => 'Data inválida ou fora do período de agendamento.']);
-    }
-    $dataSql = $data->format('Y-m-d');
-
-    // The time must be one of the allowed fixed times (strict comparison).
-    // O horário precisa ser um dos horários fixos permitidos (comparação estrita).
-    if (!in_array($hora, HORARIOS_FIXOS, true)) {
-        responder(400, ['erro' => 'Horário inválido.']);
-    }
-
-    // Service name and price come from the DATABASE, never from what the browser sends.
-    // Nome e preço do serviço vêm do BANCO, nunca do que o navegador envia.
-    $st = $pdo->prepare('SELECT id, nome, preco FROM servicos WHERE id = :id AND ativo = 1');
-    $st->execute(['id' => $servicoId]);
-    $servico = $st->fetch();
-    if ($servico === false) {
-        responder(400, ['erro' => 'Serviço inválido.']);
-    }
-
-    // Per-customer limit (prevents someone from "filling up" the schedule).
-    // Limite por cliente (evita que alguém "lote" a agenda).
-    $st = $pdo->prepare(
-        "SELECT COUNT(*) FROM agendamentos
-          WHERE usuario_id = :u AND status <> 'cancelado' AND data >= CURDATE()"
-    );
-    $st->execute(['u' => $usuario['id']]);
-    if ((int) $st->fetchColumn() >= MAX_AGENDAMENTOS_ATIVOS) {
-        responder(409, ['erro' => 'Você já tem o máximo de agendamentos ativos.']);
-    }
-
-    // Create the booking with a prepared statement (anti SQL Injection).
-    // Cria o agendamento com prepared statement (proteção contra SQL Injection).
-    $pdo->prepare(
-        'INSERT INTO agendamentos (usuario_id, servico_id, data, hora)
-         VALUES (:u, :s, :d, :h)'
-    )->execute([
-        'u' => $usuario['id'],
-        's' => $servico['id'],
-        'd' => $dataSql,
-        'h' => $hora,
-    ]);
-
-    // Grab the new id right after the insert, before any other query runs.
-    // Pega o id novo logo após o insert, antes de qualquer outra consulta.
-    $agendamentoId = (int) $pdo->lastInsertId();
-} catch (PDOException $e) {
-    // The database UNIQUE key guarantees two people never get the same time slot.
-    // MySQL error 1062 = duplicate value (slot already taken).
-    // A chave UNIQUE do banco garante que duas pessoas nunca fiquem com o mesmo horário.
-    // Erro 1062 do MySQL = valor duplicado (horário já ocupado).
-    if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-        responder(409, ['erro' => 'Esse horário acabou de ser reservado. Escolha outro.']);
-    }
-
-    // Any other database error: log privately, answer with a generic message.
-    // Qualquer outro erro de banco: registra no log e responde com mensagem genérica.
-    error_log('Booking error: ' . $e->getMessage());
-    responder(500, ['erro' => 'Erro no servidor. Tente novamente.']);
+if ((!is_int($servicoId) && !(is_string($servicoId) && ctype_digit($servicoId))) || (int)$servicoId < 1) {
+    responder(400, ['erro' => 'Selecione um serviço válido.']);
 }
+$servicoId = (int)$servicoId;
+if (!nome_valido($nome)) responder(400, ['erro' => 'Informe um nome válido (de 3 a 100 caracteres).']);
+if (!telefone_valido($telefone)) responder(400, ['erro' => 'Informe um WhatsApp válido com DDD.']);
+if (!$consentimento) responder(400, ['erro' => 'É necessário autorizar o contato pelo WhatsApp para este agendamento.']);
+$data = data_agendavel($dataTexto);
+if ($data === null) responder(400, ['erro' => 'Data inválida ou fora do período de agendamento.']);
+if (!hora_valida($hora)) responder(400, ['erro' => 'Horário inválido.']);
+$dataSql = $data->format('Y-m-d');
 
-// Booking created: answer with 201 (Created) and a summary.
-// Agendamento criado: responde com 201 (Created) e um resumo.
-responder(201, [
-    'sucesso'     => true,
-    'mensagem'    => 'Agendamento solicitado com sucesso.',
-    'agendamento' => [
-        'id'      => $agendamentoId,
-        'cliente' => $usuario['nome'],
-        'servico' => $servico['nome'],
-        'preco'   => (float) $servico['preco'],
-        'data'    => $dataSql,
-        'hora'    => $hora,
-        'status'  => 'pendente',
-    ],
-]);
+try {
+    $st = $pdo->prepare('SELECT id,nome,duracao_minutos,preco FROM servicos WHERE id=:id AND ativo=1 LIMIT 1');
+    $st->execute(['id'=>$servicoId]);
+    $servico = $st->fetch();
+    if (!$servico) responder(400, ['erro'=>'Serviço indisponível. Atualize a página e escolha outro serviço.']);
+
+    $duracao = (int)$servico['duracao_minutos'];
+    $inicio = $hora . ':00';
+    $fim = horario_fim($hora, $duracao);
+    $usuario = usuario_logado($pdo);
+
+    $pdo->beginTransaction();
+    bloquear_linha_dia($pdo, $dataSql);
+
+    $st = $pdo->prepare('SELECT 1 FROM bloqueios_dias WHERE data=:data LIMIT 1');
+    $st->execute(['data'=>$dataSql]);
+    if ($st->fetchColumn()) {
+        $pdo->rollBack();
+        responder(409, ['erro'=>'Esta data está indisponível. Escolha outro dia.']);
+    }
+
+    $st = $pdo->prepare('SELECT 1 FROM bloqueios_horarios WHERE data=:data AND hora=:hora LIMIT 1');
+    $st->execute(['data'=>$dataSql,'hora'=>$inicio]);
+    if ($st->fetchColumn()) {
+        $pdo->rollBack();
+        responder(409, ['erro'=>'Este horário está bloqueado. Escolha outro.']);
+    }
+
+    // Verifica sobreposição de intervalos, usando a duração salva no agendamento.
+    $st = $pdo->prepare("SELECT id FROM agendamentos
+        WHERE data=:data AND status IN ('pendente','confirmado')
+          AND hora < :fim
+          AND ADDTIME(hora, SEC_TO_TIME(duracao_aplicada * 60)) > :inicio
+        LIMIT 1 FOR UPDATE");
+    $st->execute(['data'=>$dataSql,'fim'=>$fim,'inicio'=>$inicio]);
+    if ($st->fetch()) {
+        $pdo->rollBack();
+        responder(409, ['erro'=>'Esse horário acabou de ser reservado. Escolha outro.']);
+    }
+
+    // Limite de três reservas ativas futuras por telefone.
+    $st = $pdo->prepare("SELECT COUNT(*) FROM agendamentos
+        WHERE cliente_telefone=:telefone AND status IN ('pendente','confirmado') AND data>=CURDATE()");
+    $st->execute(['telefone'=>$telefone]);
+    if ((int)$st->fetchColumn() >= MAX_AGENDAMENTOS_ATIVOS) {
+        $pdo->rollBack();
+        responder(409, ['erro'=>'Este WhatsApp já possui o limite de agendamentos ativos.']);
+    }
+
+    $st = $pdo->prepare("INSERT INTO agendamentos
+        (usuario_id,servico_id,cliente_nome,cliente_telefone,consentimento_whatsapp,data,hora,duracao_aplicada,preco_aplicado,status)
+        VALUES (:usuario,:servico,:nome,:telefone,1,:data,:hora,:duracao,:preco,'pendente')");
+    $st->execute([
+        'usuario'=>$usuario['id'] ?? null,
+        'servico'=>$servicoId,
+        'nome'=>$nome,
+        'telefone'=>$telefone,
+        'data'=>$dataSql,
+        'hora'=>$inicio,
+        'duracao'=>$duracao,
+        'preco'=>$servico['preco'],
+    ]);
+    $id = (int)$pdo->lastInsertId();
+    $pdo->commit();
+
+    responder(201, ['sucesso'=>true,'mensagem'=>'Agendamento registrado como pendente.','agendamento'=>[
+        'id'=>$id,'cliente'=>$nome,'telefone'=>$telefone,'servico'=>$servico['nome'],
+        'preco'=>(float)$servico['preco'],'duracao_minutos'=>$duracao,
+        'data'=>$dataSql,'hora'=>substr($inicio,0,5),'status'=>'pendente'
+    ]]);
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    if ((int)($e->errorInfo[1] ?? 0) === 1062) responder(409,['erro'=>'Esse horário acabou de ser reservado. Escolha outro.']);
+    error_log('Erro ao agendar: '.$e->getMessage());
+    responder(500,['erro'=>'Não foi possível registrar o agendamento. Tente novamente.']);
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('Erro ao agendar: '.$e->getMessage());
+    responder(500,['erro'=>'Erro interno ao registrar o agendamento.']);
+}
 ?>

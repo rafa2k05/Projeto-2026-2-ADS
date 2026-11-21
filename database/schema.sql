@@ -1,14 +1,14 @@
--- =====================================================================
--- Larissa Beauty database schema
--- Estrutura do banco de dados da Larissa Beauty
--- =====================================================================
+-- =========================================================
+-- LARISSA BEAUTY - BANCO DE DADOS
+-- Instalação segura / atualização sem apagar dados existentes
+-- MySQL 8+ ou MariaDB compatível
+-- =========================================================
 
--- Create the database (utf8mb4 supports accents and emojis).
--- Cria o banco de dados (utf8mb4 aceita acentos e emojis).
 CREATE DATABASE IF NOT EXISTS larissa_beauty
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE larissa_beauty;
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 
+USE larissa_beauty;
 -- Registered customers. The password column stores the HASH, never the real password.
 -- Clientes cadastradas. A coluna senha guarda o HASH, nunca a senha de verdade.
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -27,6 +27,22 @@ CREATE TABLE IF NOT EXISTS usuarios (
   UNIQUE KEY uq_usuarios_email (email)
 ) ENGINE=InnoDB;
 
+SET @existe_tipo = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'usuarios'
+    AND COLUMN_NAME = 'tipo'
+);
+SET @sql_tipo = IF(
+  @existe_tipo = 0,
+  "ALTER TABLE usuarios ADD COLUMN tipo ENUM('cliente','admin') NOT NULL DEFAULT 'cliente' AFTER senha",
+  "SELECT 'Coluna usuarios.tipo já existe' AS informacao"
+);
+PREPARE stmt_tipo FROM @sql_tipo;
+EXECUTE stmt_tipo;
+DEALLOCATE PREPARE stmt_tipo;
+
 -- Services (price and duration live HERE; the browser never sends these values).
 -- Serviços (preço e duração moram AQUI; o navegador não envia esses valores).
 CREATE TABLE IF NOT EXISTS servicos (
@@ -43,48 +59,115 @@ CREATE TABLE IF NOT EXISTS servicos (
 
 -- Initial services. INSERT IGNORE skips names that already exist, so it is safe to re-run.
 -- Serviços iniciais. O INSERT IGNORE pula nomes que já existem, então é seguro rodar de novo.
-INSERT IGNORE INTO servicos (nome, duracao_minutos, preco) VALUES
-  ('Volume Brasileiro', 120, 115.00),
-  ('Volume Inglês',     120, 125.00),
-  ('Fox Eyes',          120, 140.00),
-  ('Manutenção',         90,  85.00),
-  ('Remoção',            45,  45.00);
+INSERT IGNORE INTO servicos (nome, descricao, duracao_minutos, preco, ativo) VALUES
+ ('Volume Brasileiro', 'Alongamento de cílios - Volume Brasileiro', 120, 115.00, 1),
+ ('Volume Inglês', 'Alongamento de cílios - Volume Inglês', 120, 125.00, 1),
+ ('Fox Eyes', 'Alongamento de cílios - Fox Eyes', 120, 140.00, 1),
+ ('Manutenção', 'Manutenção de alongamento de cílios', 90, 85.00, 1),
+ ('Remoção', 'Remoção de alongamento de cílios', 45, 45.00, 1);
+
 
 -- Bookings. The uq_slot key blocks TWO active bookings on the same day/time,
 -- even if two people click at the same millisecond. A cancelled booking frees the slot.
 -- Agendamentos. A trava uq_slot impede DOIS agendamentos ativos no mesmo dia/horário,
 -- mesmo que duas pessoas cliquem no mesmo milissegundo. Cancelado libera o horário.
-CREATE TABLE IF NOT EXISTS agendamentos (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  usuario_id INT UNSIGNED NOT NULL,
-  servico_id INT UNSIGNED NOT NULL,
-  data       DATE NOT NULL,
-  hora       TIME NOT NULL,
-  status     ENUM('pendente','confirmado','cancelado') NOT NULL DEFAULT 'pendente',
-  criado_em  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  -- Auto-calculated: 1 while the booking is active, NULL when cancelled.
-  -- MySQL allows many NULLs in a UNIQUE key, which is what frees cancelled slots.
-  -- Calculada automaticamente: 1 enquanto o agendamento está ativo, NULL quando cancelado.
-  -- O MySQL permite vários NULL em uma chave UNIQUE, e é isso que libera os horários cancelados.
-  slot_ativo TINYINT GENERATED ALWAYS AS (IF(status = 'cancelado', NULL, 1)) STORED,
-  UNIQUE KEY uq_slot (data, hora, slot_ativo),
-  -- Speeds up "how many bookings does this customer have" lookups.
-  -- Acelera a consulta "quantos agendamentos esta cliente tem".
-  KEY idx_agendamentos_usuario (usuario_id),
-  -- Foreign keys: a booking must point to a real user and a real service.
-  -- Chaves estrangeiras: o agendamento precisa apontar para um usuário e um serviço reais.
-  CONSTRAINT fk_agend_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-  CONSTRAINT fk_agend_servico FOREIGN KEY (servico_id) REFERENCES servicos(id)
-) ENGINE=InnoDB;
 
--- Failed login log (protection against password guessing).
--- Registro de erros de senha (proteção contra tentativa de adivinhar senha).
-CREATE TABLE IF NOT EXISTS login_tentativas (
-  id        INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  email     VARCHAR(150) NOT NULL,
-  ip        VARCHAR(45)  NOT NULL,  -- 45 characters fit IPv6 / 45 caracteres comportam IPv6
+CREATE TABLE IF NOT EXISTS agenda_dias (
+  data DATE NOT NULL,
   criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  -- Used by login_bloqueado() to count recent failures per IP quickly.
-  -- Usado pelo login_bloqueado() para contar rápido as falhas recentes por IP.
+  PRIMARY KEY (data)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bloqueios_dias (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  data DATE NOT NULL,
+  motivo VARCHAR(255) NULL,
+  admin_id INT UNSIGNED NULL,
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_bloqueio_dia (data),
+  CONSTRAINT fk_bloqueio_dia_admin
+    FOREIGN KEY (admin_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bloqueios_horarios (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  data DATE NOT NULL,
+  hora TIME NOT NULL,
+  motivo VARCHAR(255) NULL,
+  admin_id INT UNSIGNED NULL,
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_bloqueio_horario (data, hora),
+  CONSTRAINT fk_bloqueio_horario_admin
+    FOREIGN KEY (admin_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS agendamentos (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  usuario_id INT UNSIGNED NULL,
+  servico_id INT UNSIGNED NOT NULL,
+  cliente_nome VARCHAR(100) NOT NULL,
+  cliente_telefone VARCHAR(20) NOT NULL,
+  consentimento_whatsapp TINYINT(1) NOT NULL DEFAULT 0,
+  data DATE NOT NULL,
+  hora TIME NOT NULL,
+  duracao_aplicada SMALLINT UNSIGNED NOT NULL,
+  preco_aplicado DECIMAL(10,2) NOT NULL,
+  status ENUM('pendente','confirmado','cancelado') NOT NULL DEFAULT 'pendente',
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_agendamentos_usuario (usuario_id),
+  KEY idx_agendamentos_data_status (data, status),
+  KEY idx_agendamentos_telefone (cliente_telefone),
+  CONSTRAINT fk_agend_usuario
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+  CONSTRAINT fk_agend_servico
+    FOREIGN KEY (servico_id) REFERENCES servicos(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS login_tentativas (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email VARCHAR(150) NOT NULL,
+  ip VARCHAR(45) NOT NULL,
+  criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
   KEY idx_tentativas (ip, criado_em)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO usuarios (nome, email, senha, tipo)
+VALUES (
+  'Administradora',
+  'admin@gmail.com',
+  '$2y$12$KhODj.X4tipBnCnlY2FWwerW3FqvTQwInLUimE6gZo1C5V3nKlmwC',
+  'admin'
+)
+ON DUPLICATE KEY UPDATE
+  nome = VALUES(nome),
+  senha = VALUES(senha),
+  tipo = 'admin';
+
+SELECT id, nome, email, tipo
+FROM usuarios
+WHERE email = 'admin@gmail.com';
+
+SELECT id, nome, duracao_minutos, preco, ativo
+FROM servicos
+ORDER BY id;
+
+SELECT
+  a.id,
+  a.cliente_nome,
+  a.cliente_telefone,
+  a.data,
+  TIME_FORMAT(a.hora, '%H:%i') AS hora,
+  s.nome AS servico,
+  a.preco_aplicado,
+  a.duracao_aplicada,
+  a.status,
+  a.criado_em
+FROM agendamentos a
+INNER JOIN servicos s ON s.id = a.servico_id
+ORDER BY a.data DESC, a.hora DESC
+LIMIT 50;
