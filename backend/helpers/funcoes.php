@@ -464,7 +464,7 @@ function exigir_admin(PDO $pdo): array
 
     return $u;
 }
-?>
+
 
 // ===== Agenda / Regras de agenda =====
 
