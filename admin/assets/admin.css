@@ -116,3 +116,6 @@ input:disabled,select:disabled{background:#efe7db;color:var(--suave)}
 .livres{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
 .chip{font:600 .8rem 'Montserrat',sans-serif;padding:7px 14px;border-radius:99px;border:1px solid var(--ouro);background:transparent;color:var(--ouro-esc);cursor:pointer}
 .chip:hover{background:var(--ouro);color:#fff}
+.aviso{background:#dcebd9;color:var(--ok);padding:10px 16px;border-radius:12px;font-size:.88rem;margin:0 0 14px}
+.aviso.falha{background:#f3d9d6;color:var(--erro)}
+.aviso[hidden]{display:none}
