@@ -3,6 +3,7 @@
 -- Instalação segura / atualização sem apagar dados existentes
 -- MySQL 8+ ou MariaDB compatível
 -- =========================================================
+SET NAMES utf8mb4;
 
 CREATE DATABASE IF NOT EXISTS larissa_beauty
   CHARACTER SET utf8mb4

@@ -9,12 +9,14 @@ require_once __DIR__ . '/../helpers/funcoes.php';
 
 // Default settings, meant for local development only.
 // Configurações padrão, feitas apenas para desenvolvimento local.
+// Environment variables (used by Docker / CI) win over the defaults; without them, nothing changes.
+// Variáveis de ambiente (usadas pelo Docker / CI) têm prioridade; sem elas, nada muda no Laragon.
 $cfg = [
-    'host'    => 'localhost',
-    'porta'   => 3306,
-    'banco'   => 'larissa_beauty',
-    'usuario' => 'root',
-    'senha'   => '',
+    'host'    => getenv('DB_HOST') ?: 'localhost',
+    'porta'   => (int) (getenv('DB_PORT') ?: 3306),
+    'banco'   => getenv('DB_NAME') ?: 'larissa_beauty',
+    'usuario' => getenv('DB_USER') ?: 'root',
+    'senha'   => getenv('DB_PASS') !== false ? getenv('DB_PASS') : '',
 ];
 
 $arquivoLocal = __DIR__ . '/config.php';

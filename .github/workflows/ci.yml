@@ -1,0 +1,47 @@
+name: CI
+
+# Roda automaticamente a cada push ou Pull Request na branch main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-php:
+    name: Verificar sintaxe PHP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Checar erro de sintaxe em todos os arquivos .php
+        run: |
+          find . -name "*.php" -not -path "./.git/*" -print0 | xargs -0 -n1 php -l
+
+  docker-test:
+    name: Build Docker + teste de fumaça
+    runs-on: ubuntu-latest
+    needs: lint-php
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Subir o sistema (PHP + MySQL) com Docker Compose
+        run: docker compose up --build -d
+
+      - name: Rodar testes automáticos
+        run: ./scripts/smoke-test.sh
+
+      - name: Mostrar logs se algo falhar
+        if: failure()
+        run: docker compose logs
+
+      - name: Derrubar os containers
+        if: always()
+        run: docker compose down -v

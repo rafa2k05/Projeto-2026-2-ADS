@@ -1,0 +1,37 @@
+# Sobe o sistema inteiro (site PHP + banco MySQL) com um único comando:
+#   docker compose up --build
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"            # acesse em http://localhost:8080
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: larissa_beauty
+      DB_USER: larissa
+      DB_PASS: larissa_dev   # senha só para desenvolvimento/teste
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_dev
+      MYSQL_DATABASE: larissa_beauty
+      MYSQL_USER: larissa
+      MYSQL_PASSWORD: larissa_dev
+    volumes:
+      # O MySQL executa automaticamente os .sql desta pasta na 1ª vez que sobe
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot_dev"]
+      # usa TCP (127.0.0.1) de propósito: só responde depois que o schema.sql foi importado
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db_data:
