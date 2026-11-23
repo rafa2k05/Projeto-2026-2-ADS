@@ -36,7 +36,7 @@ jobs:
         run: docker compose up --build -d
 
       - name: Rodar testes automáticos
-        run: ./scripts/smoke-test.sh
+        run: bash scripts/smoke-test.sh
 
       - name: Mostrar logs se algo falhar
         if: failure()
